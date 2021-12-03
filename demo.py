@@ -12,7 +12,9 @@ import os
 import dlib
 from scipy.spatial import distance as dist
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 x = 0
+label =''
 
 # construct argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -25,7 +27,7 @@ ap.add_argument("-d", "--detector", type=str, required=True,
 ap.add_argument("-c", "--confidence", type=float, default=0.5,
 	help="minimum probability to filter weak detections")
 ap.add_argument("-p", "--shape-predictor", required=True,
-	     help="path to facial landmark predictor")
+	help="path to facial landmark predictor")
 args = vars(ap.parse_args())
 
 # loading face detector from the place where we stored it
@@ -77,25 +79,22 @@ def eye_aspect_ratio(eye):
 
 #loading the predictor for predicting
 detector = dlib.get_frontal_face_detector()  
-
 #accessing the shape predictor
 predictor = dlib.shape_predictor(args["shape_predictor"])
-
-#fetch images and image name from ImageGallery
+#fetch images from Image Library
 path = "ImageLibrary"
 images = []
 names = []
 myList = os.listdir(path)
 print(myList)
-
+#fetch names from the image
 for cl in myList:
     curlImg = cv2.imread(f'{path}/{cl}')
     images.append(curlImg)
     names.append(os.path.splitext(cl)[0])
 
 print(names)
-
-#retrieve encodings
+#find encodings of the images
 def findEncodings(images):
     encodingList = []
     for img in images:
@@ -112,13 +111,14 @@ video_capture = cv2.VideoCapture(0)
 while True:
     #checkpoint 1
     ret, frame = video_capture.read()
+
     if ret:
-        
+            
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  
         rects = detector(gray, 0)
-        frame = imutils.resize(frame, width=600)
+        frame = imutils.resize(frame, width=960, height=540)
         for rect in rects:
-            
+                
             x = rect.left()  
             y = rect.top()  
             x1 = rect.right()  
@@ -130,32 +130,30 @@ while True:
             right_eye_hull = cv2.convexHull(right_eye)  
             ear_left = eye_aspect_ratio(left_eye)  
             ear_right = eye_aspect_ratio(right_eye)
-		
-            #calculating blink wheneer the ear value drops down below the threshold
-	
-            if ear_left < EYE_AR_THRESH:
-                
-                COUNTER_LEFT += 1
             
+                #calculating blink wheneer the ear value drops down below the threshold
+        
+            if ear_left < EYE_AR_THRESH:
+                    
+                COUNTER_LEFT += 1
+                
             else:
-                
-                
+                    
+                    
                 if COUNTER_LEFT >= EYE_AR_CONSEC_FRAMES:
-                    
-                    
+                        
                     TOTAL_LEFT += 1  
                     COUNTER_LEFT = 0
 
             if ear_right < EYE_AR_THRESH:  
-                
-                
+                    
+                    
                 COUNTER_RIGHT += 1  
 
             else:
-                
+                    
                 if COUNTER_RIGHT >= EYE_AR_CONSEC_FRAMES: 
-                    
-                    
+                        
                     TOTAL_RIGHT += 1   
                     COUNTER_RIGHT = 0
 
@@ -164,80 +162,89 @@ while True:
 
     (h, w) = frame.shape[:2]
     temp = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0,
-		(300, 300), (104.0, 177.0, 123.0))
+        (300, 300), (104.0, 177.0, 123.0))
     net.setInput(temp)
     detections = net.forward()
-
-    #read the face frame
+        # read the face frames
     imgS = cv2.resize(frame, (0,0), None, 0.25,0.25)
     imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
-
-    #encode the face frame
+        # encode the face frames
     faceCurrentFrame = face_recognition.face_locations(imgS)
     encodeCurrentFrame = face_recognition.face_encodings(imgS, faceCurrentFrame)
-
     for i in range(0, detections.shape[2]):
 
         confidence = detections[0, 0, i, 2]
-            
-          #staisfying the union need of veryfying through ROI and blink detection.  
+                
+            #staisfying the union need of veryfying through ROI and blink detection.  
         if confidence > args["confidence"] and x>10:
-            
-            
-             
-            #detect a bounding box
-	    #take dimensions
+                
+                
+                
+                #detect a bounding box
+            #take dimensions
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-	    #get the dimensions
+            #get the dimensions
             (startX, startY, endX, endY) = box.astype("int")
 
-			
+                
             startX = max(0, startX)
             startY = max(0, startY)
             endX = min(w, endX)
             endY = min(h, endY)
 
-	# extract the face ROI and then preproces it in the exact
-	# same manner as our training data
+        # extract the face ROI and then preproces it in the exact
+        # same manner as our training data
             face = frame[startY:endY, startX:endX]
             face = cv2.resize(face, (32, 32))
             face = face.astype("float") / 255.0
             face = img_to_array(face)
             face = np.expand_dims(face, axis=0)
 
-	#pass the model to determine the liveness
+        #pass the model to determine the liveness
             preds = model.predict(face)[0]
             j = np.argmax(preds)
             label = le.classes_[j]
-            label = "{}".format(label)
-            print(label)
-                    
             if label == "real":
                 for faceLoc,encodeFace in zip(faceCurrentFrame, encodeCurrentFrame):
                     matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
                     faceDistance = face_recognition.face_distance(encodeListKnown, encodeFace)
-                    print(faceDistance)
-                    # matchIndex = np.argmin(faceDistance)
-                    # print(matchIndex)
-                    # if matches[matchIndex]:
-                    #     name = names[matchIndex].upper()
-                    #     print(name)
-
-                cv2.putText(frame, label, (startX, startY - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 128, 0), 2)
-                cv2.rectangle(frame, (startX, startY), (endX, endY),
-                (0, 128, 0), 2)
+                    # print(faceDistance)
+                    matchIndex = np.argmin(faceDistance)
+                    if matches[matchIndex]:
+                        name = names[matchIndex].upper()
+                        text = "{}".format(name)
+                        cv2.putText(frame, text, (startX, startY - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                        cv2.rectangle(frame, (startX, startY), (endX, endY),
+                            (0,255,0), 2)
+                    else:
+                        text = "{}".format("User Not Registered !!")
+                        cv2.putText(frame, text, (startX, startY - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                        cv2.rectangle(frame, (startX, startY), (endX, endY),
+                            (0,0,255), 2)
+                    
             else:
-                cv2.putText(frame, label, (startX, startY - 10),
+                warning = "Warning !! Fake Photo"
+                cv2.putText(frame, warning, (startX, startY - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
                 cv2.rectangle(frame, (startX, startY), (endX, endY),
-                (0, 0, 255), 2)
- #showing the frames and waiting for the key to be pressed
-    cv2.imshow("Frame", frame)
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord("q"):
-        break
-    cv2.destroyAllWindows()
+                    (0,0,255), 2)
+
+    # def show_frame():
+    #     flip_frame = cv2.flip(frame,1)
+    #     cv2image = cv2.cvtColor(flip_frame, cv2.COLOR_BGR2RGBA)
+    #     imgtk = ImageTk.PhotoImage(image=Image.fromarray(cv2image))
+    #     lmain.imgtk = imgtk
+    #     lmain.configure(image=imgtk)
+    #     lmain.after(10, show_frame) 
+
+    # show_frame()
+    # root.mainloop()
+    cv2.imshow("Attendance System", frame)
+    cv2.waitKey(1)
+    
+
 #vs.stop()
 
 

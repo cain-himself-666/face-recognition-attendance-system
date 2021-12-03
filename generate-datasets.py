@@ -55,5 +55,8 @@ while True:
         saved += 1
         print("Saved {} to disk".format(p))
 
+    cv2.imshow("Capture", frame)
+    cv2.waitKey(1)
+    
 vs.release()
 cv2.destroyAllWindows()
