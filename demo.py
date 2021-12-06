@@ -1,16 +1,20 @@
 from imutils.video import VideoStream
 from keras.preprocessing.image import img_to_array
 from keras.models import load_model
+import tkinter as tk
+from datetime import datetime
+from PIL import Image, ImageTk
 import face_recognition
 import numpy as np
 import argparse
-import imutils
 import pickle
 import time
 import cv2
 import os
 import dlib
 from scipy.spatial import distance as dist
+
+
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 x = 0
@@ -105,25 +109,76 @@ def findEncodings(images):
 
 encodeListKnown = findEncodings(images)
 print('Encoding Complete')
+# Load an color image
+root = tk.Tk()
+root.geometry("900x800")
+heading = tk.Label(root,text="High Court of Sikkim Attendace System")
+heading.config(font = ("Helvetica", 28))
+heading.pack()
+
+text1 = tk.Label(root, text="Rules to follow: ")
+text1.config(font = ("Helvetica", 20))
+text1.pack()
+
+text2 = tk.Label(root, text="1) Please remove your mask for attendance")
+text2.config(font = ("Helvetica", 20))
+text2.pack()
+
+text3 = tk.Label(root, text="2) One face at a time for attendace marking")
+text3.config(font = ("Helvetica", 20))
+text3.pack()
+
+imageFrame = tk.Frame(root, width=700, height=600)
+imageFrame.grid(row=0, column=0, padx=10, pady=2)
+imageFrame.pack()
+
+frame = tk.Frame(root, bg="black")
+frame.place(relheight=0.45, relwidth=0.4, relx=0.3, rely=0.3)
+
+lmain = tk.Label(frame)
+lmain.grid(row=0, column=0)
+
+response = tk.Label(root)
+response.config(font = ("Helvetica", 20))
+response.pack()
+
+#Mark Attendance
+def markAttendance(name, date, time):
+    with open('Attendance.csv', 'r+') as f:
+        
+        myDataList = f.readlines()
+        attendanceList = []
+        for line in myDataList:
+            entry = line.split(',')
+            attendanceList.append(entry[0])
+        
+        if name not in attendanceList:
+            f.writelines(f'\n{name}, {date}, {time}')
+            response['text'] = "Welcome {}. Your attendance has been marked on {} at {}.".format(name, currentDate, currentTime)
+            response['foreground'] = "green"
+
+
 #starting the stream
 video_capture = cv2.VideoCapture(0)
+video_capture.set(3, 640)
+video_capture.set(4, 480)
 #looping over frames
 while True:
     #checkpoint 1
     ret, frame = video_capture.read()
-
+    flip_frame = cv2.flip(frame, 1)
     if ret:
             
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  
+        gray = cv2.cvtColor(flip_frame, cv2.COLOR_BGR2GRAY)  
         rects = detector(gray, 0)
-        frame = imutils.resize(frame, width=960, height=540)
+        # frame = imutils.resize(frame, width=600, height=700)
         for rect in rects:
                 
             x = rect.left()  
             y = rect.top()  
             x1 = rect.right()  
             y1 = rect.bottom()
-            landmarks = np.matrix([[p.x, p.y] for p in predictor(frame, rect).parts()])  
+            landmarks = np.matrix([[p.x, p.y] for p in predictor(flip_frame, rect).parts()])  
             left_eye = landmarks[LEFT_EYE_POINTS]  
             right_eye = landmarks[RIGHT_EYE_POINTS]  
             left_eye_hull = cv2.convexHull(left_eye)  
@@ -160,13 +215,13 @@ while True:
 
             x = TOTAL_LEFT + TOTAL_RIGHT
 
-    (h, w) = frame.shape[:2]
-    temp = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0,
+    (h, w) = flip_frame.shape[:2]
+    temp = cv2.dnn.blobFromImage(cv2.resize(flip_frame, (300, 300)), 1.0,
         (300, 300), (104.0, 177.0, 123.0))
     net.setInput(temp)
     detections = net.forward()
         # read the face frames
-    imgS = cv2.resize(frame, (0,0), None, 0.25,0.25)
+    imgS = cv2.resize(flip_frame, (0,0), None, 0.25,0.25)
     imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
         # encode the face frames
     faceCurrentFrame = face_recognition.face_locations(imgS)
@@ -194,7 +249,7 @@ while True:
 
         # extract the face ROI and then preproces it in the exact
         # same manner as our training data
-            face = frame[startY:endY, startX:endX]
+            face = flip_frame[startY:endY, startX:endX]
             face = cv2.resize(face, (32, 32))
             face = face.astype("float") / 255.0
             face = img_to_array(face)
@@ -211,38 +266,42 @@ while True:
                     # print(faceDistance)
                     matchIndex = np.argmin(faceDistance)
                     if matches[matchIndex]:
+                        timedate = datetime.now()
+                        currentTime = timedate.strftime('%d-%m-%Y')
+                        currentDate = timedate.strftime('%H:%M %p')
                         name = names[matchIndex].upper()
                         text = "{}".format(name)
-                        cv2.putText(frame, text, (startX, startY - 10),
+                        cv2.putText(flip_frame, text, (startX, startY - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                        cv2.rectangle(frame, (startX, startY), (endX, endY),
+                        cv2.rectangle(flip_frame, (startX, startY), (endX, endY),
                             (0,255,0), 2)
+                        markAttendance(name, currentDate, currentTime)
+                        
+
                     else:
                         text = "{}".format("User Not Registered !!")
-                        cv2.putText(frame, text, (startX, startY - 10),
+                        cv2.putText(flip_frame, text, (startX, startY - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-                        cv2.rectangle(frame, (startX, startY), (endX, endY),
+                        cv2.rectangle(flip_frame, (startX, startY), (endX, endY),
                             (0,0,255), 2)
                     
             else:
-                warning = "Warning !! Fake Photo"
-                cv2.putText(frame, warning, (startX, startY - 10),
+                warning = "Unknown"
+                cv2.putText(flip_frame, warning, (startX, startY - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-                cv2.rectangle(frame, (startX, startY), (endX, endY),
+                cv2.rectangle(flip_frame, (startX, startY), (endX, endY),
                     (0,0,255), 2)
+                response['text'] = ''
+    
+    # cv2.imshow("Attendance System", frame)
+    # cv2.waitKey(1)
+    
+    cv2image = cv2.cvtColor(flip_frame, cv2.COLOR_BGR2RGBA)
+    img = Image.fromarray(cv2image)
+    imgtk = ImageTk.PhotoImage(image=img)
+    lmain['image'] = imgtk
 
-    # def show_frame():
-    #     flip_frame = cv2.flip(frame,1)
-    #     cv2image = cv2.cvtColor(flip_frame, cv2.COLOR_BGR2RGBA)
-    #     imgtk = ImageTk.PhotoImage(image=Image.fromarray(cv2image))
-    #     lmain.imgtk = imgtk
-    #     lmain.configure(image=imgtk)
-    #     lmain.after(10, show_frame) 
-
-    # show_frame()
-    # root.mainloop()
-    cv2.imshow("Attendance System", frame)
-    cv2.waitKey(1)
+    root.update() 
     
 
 #vs.stop()
