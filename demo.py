@@ -1,6 +1,7 @@
 from imutils.video import VideoStream
 from keras.preprocessing.image import img_to_array
 from keras.models import load_model
+import psycopg2
 import tkinter as tk
 from datetime import datetime
 from PIL import Image, ImageTk
@@ -143,21 +144,40 @@ response.config(font = ("Helvetica", 20))
 response.pack()
 
 #Mark Attendance
-def markAttendance(name, date, time):
-    with open('Attendance.csv', 'r+') as f:
+def markAttendance(name, date, intime):
+    try:
+        conn = psycopg2.connect(
+            host="localhost",
+            database="oss-dev",
+            user="postgres",
+            password="postgres",
+            port="5432"
+        )
+        cur = conn.cursor()
+        query = """INSERT INTO attendance(username, date, intime) VALUES (%s,%s,%s)"""
+        params = (name, date, intime)
+        cur.execute(query, params)
+        response['text'] = "Welcome {}. Your attendance has been marked on {} at {}".format(name, date,intime)
+        response['foreground'] = "green"
+        conn.commit()
+        # cur.close()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
         
-        myDataList = f.readlines()
-        attendanceList = []
-        for line in myDataList:
-            entry = line.split(',')
-            attendanceList.append(entry[0])
+    # with open('Attendance.csv', 'r+') as f:
         
-        if name not in attendanceList:
-            f.writelines(f'\n{name}, {date}, {time}')
-            response['text'] = "Welcome {}. Your attendance has been marked on {} at {}.".format(name, currentDate, currentTime)
-            response['foreground'] = "green"
+    #     myDataList = f.readlines()
+    #     attendanceList = []
+    #     for line in myDataList:
+    #         entry = line.split(',')
+    #         attendanceList.append(entry[0])
+    #     if name not in attendanceList:
+    #         f.writelines(f'\n{name}, {date}, {intime}')
+    #         response['text'] = "Welcome {}. Your attendance has been marked on {} at {}.".format(name, date, intime)
+    #         response['foreground'] = "green"
+                
 
-
+# Initialize Timer
 #starting the stream
 video_capture = cv2.VideoCapture(0)
 video_capture.set(3, 640)
@@ -226,6 +246,9 @@ while True:
         # encode the face frames
     faceCurrentFrame = face_recognition.face_locations(imgS)
     encodeCurrentFrame = face_recognition.face_encodings(imgS, faceCurrentFrame)
+    # initialize timer
+    now = time.time()
+    past = now - 10
     for i in range(0, detections.shape[2]):
 
         confidence = detections[0, 0, i, 2]
@@ -265,26 +288,26 @@ while True:
                     faceDistance = face_recognition.face_distance(encodeListKnown, encodeFace)
                     # print(faceDistance)
                     matchIndex = np.argmin(faceDistance)
-                    if matches[matchIndex]:
-                        timedate = datetime.now()
-                        currentTime = timedate.strftime('%d-%m-%Y')
-                        currentDate = timedate.strftime('%H:%M %p')
-                        name = names[matchIndex].upper()
-                        text = "{}".format(name)
-                        cv2.putText(flip_frame, text, (startX, startY - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                        cv2.rectangle(flip_frame, (startX, startY), (endX, endY),
-                            (0,255,0), 2)
-                        markAttendance(name, currentDate, currentTime)
-                        
 
-                    else:
-                        text = "{}".format("User Not Registered !!")
-                        cv2.putText(flip_frame, text, (startX, startY - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-                        cv2.rectangle(flip_frame, (startX, startY), (endX, endY),
-                            (0,0,255), 2)
+                if matches[matchIndex]:
+                    timedate = datetime.now()
+                    currentDate = timedate.strftime('%d-%m-%Y')
+                    currentTime = timedate.strftime('%H:%M:%S')
+                    name = names[matchIndex].upper()
+                    text = "{}".format(name)
+                    cv2.putText(flip_frame, text, (startX, startY - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    cv2.rectangle(flip_frame, (startX, startY), (endX, endY),
+                        (0,255,0), 2)
+                    markAttendance(name, currentDate ,currentTime)
+                else:
+                    text = "{}".format("User Not Registered !!")
+                    cv2.putText(flip_frame, text, (startX, startY - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                    cv2.rectangle(flip_frame, (startX, startY), (endX, endY),
+                        (0,0,255), 2)
                     
+
             else:
                 warning = "Unknown"
                 cv2.putText(flip_frame, warning, (startX, startY - 10),

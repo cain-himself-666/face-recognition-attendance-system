@@ -26,6 +26,7 @@ saved = 0
 
 while True:
     (grabbed, frame) = vs.read()
+    flip_frame = cv2.flip(frame, 1)
     
     if not grabbed:
         break
@@ -35,8 +36,8 @@ while True:
     if read % args["skip"] != 0:
         continue
 
-    (h,w) = frame.shape[:2]
-    blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300,300)), 1.0, (300,300), (104.0,177.0,123.0))
+    (h,w) = flip_frame.shape[:2]
+    blob = cv2.dnn.blobFromImage(cv2.resize(flip_frame, (300,300)), 1.0, (300,300), (104.0,177.0,123.0))
 
     net.setInput(blob)
     detections = net.forward()
@@ -48,14 +49,14 @@ while True:
     if confidence > args["confidence"]:
         box = detections[0,0,i,3:7] * np.array([w,h,w,h])
         (startX, startY, endX, endY) = box.astype("int")
-        face = frame[startY: endY, startX: endX]
+        face = flip_frame[startY: endY, startX: endX]
         
         p = os.path.sep.join([args["output"], "{}.png".format(saved)])
         cv2.imwrite(p, face)
         saved += 1
         print("Saved {} to disk".format(p))
-
-    cv2.imshow("Capture", frame)
+    
+    cv2.imshow("Capture", flip_frame)
     cv2.waitKey(1)
     
 vs.release()
