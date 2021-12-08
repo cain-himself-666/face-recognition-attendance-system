@@ -27,7 +27,6 @@ saved = 0
 while True:
     (grabbed, frame) = vs.read()
     flip_frame = cv2.flip(frame, 1)
-    
     if not grabbed:
         break
 
