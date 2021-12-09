@@ -129,7 +129,7 @@ text3 = tk.Label(root, text="2) One face at a time for attendace marking")
 text3.config(font = ("Helvetica", 20))
 text3.pack()
 
-imageFrame = tk.Frame(root, width=700, height=600)
+imageFrame = tk.Frame(root, width=700, height=700)
 imageFrame.grid(row=0, column=0, padx=10, pady=2)
 imageFrame.pack()
 
@@ -170,7 +170,7 @@ def markAttendance(name, date, intime):
 video_capture = cv2.VideoCapture(0)
 video_capture.set(3, 640)
 video_capture.set(4, 480)
-scale = 30
+scale = 15
 #looping over frames
 while True:
     #checkpoint 1
