@@ -96,6 +96,8 @@ for cl in myList:
     curlImg = cv2.imread(f'{path}/{cl}')
     images.append(curlImg)
     labels = os.path.splitext(cl)[0]
+    if labels.startswith('.'):
+        continue
     names.append(labels.split("_")[0])
 
 print(names)
@@ -164,8 +166,6 @@ def markAttendance(name, date, intime):
     except (Exception, psycopg2.DatabaseError) as error:
         pass
                 
-
-# Initialize Timer
 #starting the stream
 video_capture = cv2.VideoCapture(1)
 video_capture.set(3, 640)
@@ -184,14 +184,10 @@ while True:
     minY,maxY=centerY-radiusY,centerY+radiusY
     cropped = flip_frame[minX:maxX, minY:maxY]
     resized_cropped = cv2.resize(cropped, (w, h))
-
-    if ret:
-            
+    if ret:    
         gray = cv2.cvtColor(resized_cropped, cv2.COLOR_BGR2GRAY)  
         rects = detector(gray, 0)
-        # frame = imutils.resize(frame, width=600, height=700)
-        for rect in rects:
-                
+        for rect in rects:       
             x = rect.left()  
             y = rect.top()  
             x1 = rect.right()  
@@ -202,38 +198,35 @@ while True:
             left_eye_hull = cv2.convexHull(left_eye)  
             right_eye_hull = cv2.convexHull(right_eye)  
             ear_left = eye_aspect_ratio(left_eye)  
-            ear_right = eye_aspect_ratio(right_eye)
-            
-                #calculating blink wheneer the ear value drops down below the threshold
+            ear_right = eye_aspect_ratio(right_eye) 
+            #calculating blink wheneer the ear value drops down below the threshold
         
-            if ear_left < EYE_AR_THRESH:
+            # if ear_left < EYE_AR_THRESH:
                     
-                COUNTER_LEFT += 1
+            #     COUNTER_LEFT += 1
                 
-            else:
+            # else:
                     
                     
-                if COUNTER_LEFT >= EYE_AR_CONSEC_FRAMES:
+            #     if COUNTER_LEFT >= EYE_AR_CONSEC_FRAMES:
                         
-                    TOTAL_LEFT += 1  
-                    COUNTER_LEFT = 0
+            #         TOTAL_LEFT += 1  
+            #         COUNTER_LEFT = 0
 
-            if ear_right < EYE_AR_THRESH:  
+            # if ear_right < EYE_AR_THRESH:  
                     
                     
-                COUNTER_RIGHT += 1  
+            #     COUNTER_RIGHT += 1  
 
-            else:
+            # else:
                     
-                if COUNTER_RIGHT >= EYE_AR_CONSEC_FRAMES: 
+            #     if COUNTER_RIGHT >= EYE_AR_CONSEC_FRAMES: 
                         
-                    TOTAL_RIGHT += 1   
-                    COUNTER_RIGHT = 0
+            #         TOTAL_RIGHT += 1   
+            #         COUNTER_RIGHT = 0
 
 
-            x = TOTAL_LEFT + TOTAL_RIGHT
-
-    
+            # x = TOTAL_LEFT + TOTAL_RIGHT
 
     temp = cv2.dnn.blobFromImage(cv2.resize(resized_cropped, (300, 300)), 1.0,
         (300, 300), (104.0, 177.0, 123.0))
