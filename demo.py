@@ -113,7 +113,7 @@ print('Encoding Complete')
 # Load an color image
 root = tk.Tk()
 root.geometry("900x800")
-heading = tk.Label(root,text="High Court of Sikkim Attendace System")
+heading = tk.Label(root,text="High Court of Sikkim Attendance System")
 heading.config(font = ("Helvetica", 28))
 heading.pack()
 
@@ -129,7 +129,7 @@ text3 = tk.Label(root, text="2) One face at a time for attendace marking")
 text3.config(font = ("Helvetica", 20))
 text3.pack()
 
-imageFrame = tk.Frame(root, width=700, height=700)
+imageFrame = tk.Frame(root, width=700, height=600)
 imageFrame.grid(row=0, column=0, padx=10, pady=2)
 imageFrame.pack()
 
@@ -162,15 +162,15 @@ def markAttendance(name, date, intime):
         conn.commit()
         # cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        pass
                 
 
 # Initialize Timer
 #starting the stream
-video_capture = cv2.VideoCapture(0)
+video_capture = cv2.VideoCapture(1)
 video_capture.set(3, 640)
 video_capture.set(4, 480)
-scale = 15
+scale = 21
 #looping over frames
 while True:
     #checkpoint 1
@@ -282,27 +282,27 @@ while True:
                 for faceLoc,encodeFace in zip(faceCurrentFrame, encodeCurrentFrame):
                     matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
                     faceDistance = face_recognition.face_distance(encodeListKnown, encodeFace)
-                    # print(faceDistance)
                     matchIndex = np.argmin(faceDistance)
 
                     if matches[matchIndex]:
-                        timedate = datetime.now()
-                        currentDate = timedate.strftime('%d-%m-%Y')
-                        currentTime = timedate.strftime('%H:%M:%S')
-                        name = names[matchIndex].upper()
-                        text = "{}".format(name)
-                        cv2.putText(resized_cropped, text, (startX, startY - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                        cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
-                            (0,255,0), 2)
-                        markAttendance(name, currentDate ,currentTime)
-                    else:
-                        text = "{}".format("User Not Registered !!")
-                        cv2.putText(resized_cropped, text, (startX, startY - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-                        cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
-                            (0,0,255), 2)
-                break
+                        if faceDistance[matchIndex] < 0.45:
+                            # print(faceDistance[matchIndex])
+                            timedate = datetime.now()
+                            currentDate = timedate.strftime('%Y-%m-%d')
+                            currentTime = timedate.strftime('%H:%M:%S')
+                            name = names[matchIndex].upper()
+                            text = "{}".format(name)
+                            cv2.putText(resized_cropped, text, (startX, startY - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                            cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
+                                (0,255,0), 2)
+                            markAttendance(name, currentDate ,currentTime)
+                        else:
+                            text = "{}".format("Unknown")
+                            cv2.putText(resized_cropped, text, (startX, startY - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                            cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
+                                (0,0,255), 2)
                     
 
             else:
@@ -313,9 +313,6 @@ while True:
                     (0,0,255), 2)
                 response['text'] = ''
                 break
-    
-    # cv2.imshow("Attendance System", frame)
-    # cv2.waitKey(1)
     
     cv2image = cv2.cvtColor(resized_cropped, cv2.COLOR_BGR2RGBA)
     img = Image.fromarray(cv2image)
