@@ -1,7 +1,8 @@
 from keras.preprocessing.image import img_to_array
 from keras.models import load_model
 import psycopg2
-import tkinter as tk
+from playsound import playsound
+import tkinter
 from datetime import datetime
 from PIL import Image, ImageTk
 import face_recognition
@@ -90,7 +91,6 @@ path = "ImageLibrary"
 images = []
 names = []
 myList = os.listdir(path)
-print(myList)
 #fetch names from the image
 for cl in myList:
     curlImg = cv2.imread(f'{path}/{cl}')
@@ -100,7 +100,6 @@ for cl in myList:
         continue
     names.append(labels.split("_")[0])
 
-print(names)
 #find encodings of the images
 def findEncodings(images):
     encodingList = []
@@ -113,35 +112,35 @@ def findEncodings(images):
 encodeListKnown = findEncodings(images)
 print('Encoding Complete')
 # Load an color image
-root = tk.Tk()
+root = tkinter.Tk()
 root.geometry("900x800")
-heading = tk.Label(root,text="High Court of Sikkim Attendance System")
+heading = tkinter.Label(root,text="High Court of Sikkim Attendance System")
 heading.config(font = ("Helvetica", 28))
 heading.pack()
 
-text1 = tk.Label(root, text="Rules to follow: ")
+text1 = tkinter.Label(root, text="Rules to follow: ")
 text1.config(font = ("Helvetica", 20))
 text1.pack()
 
-text2 = tk.Label(root, text="1) Please remove your mask for attendance")
+text2 = tkinter.Label(root, text="1) Please remove your mask for attendance")
 text2.config(font = ("Helvetica", 20))
 text2.pack()
 
-text3 = tk.Label(root, text="2) One face at a time for attendace marking")
+text3 = tkinter.Label(root, text="2) One face at a time for attendace marking")
 text3.config(font = ("Helvetica", 20))
 text3.pack()
 
-imageFrame = tk.Frame(root, width=700, height=600)
+imageFrame = tkinter.Frame(root, width=700, height=600)
 imageFrame.grid(row=0, column=0, padx=10, pady=2)
 imageFrame.pack()
 
-frame = tk.Frame(root, bg="black")
+frame = tkinter.Frame(root, bg="black")
 frame.place(relheight=0.6, relwidth=0.6, relx=0.2, rely=0.2)
 
-lmain = tk.Label(frame)
+lmain = tkinter.Label(frame)
 lmain.grid(row=0, column=0)
 
-response = tk.Label(root)
+response = tkinter.Label(root)
 response.config(font = ("Helvetica", 20))
 response.pack()
 
@@ -162,6 +161,7 @@ def markAttendance(name, date, intime):
         response['text'] = "Welcome {}. Your attendance has been marked on {} at {}".format(name, date,intime)
         response['foreground'] = "green"
         conn.commit()
+        # playsound('marked.wav')
         # cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
         pass
@@ -187,7 +187,7 @@ while True:
     if ret:    
         gray = cv2.cvtColor(resized_cropped, cv2.COLOR_BGR2GRAY)  
         rects = detector(gray, 0)
-        for rect in rects:       
+        for rect in rects:      
             x = rect.left()  
             y = rect.top()  
             x1 = rect.right()  
@@ -200,43 +200,44 @@ while True:
             ear_left = eye_aspect_ratio(left_eye)  
             ear_right = eye_aspect_ratio(right_eye) 
             #calculating blink wheneer the ear value drops down below the threshold
-        
-            # if ear_left < EYE_AR_THRESH:
+            if ear_left < EYE_AR_THRESH:
                     
-            #     COUNTER_LEFT += 1
+                COUNTER_LEFT += 1
                 
-            # else:
+            else:
                     
                     
-            #     if COUNTER_LEFT >= EYE_AR_CONSEC_FRAMES:
+                if COUNTER_LEFT >= EYE_AR_CONSEC_FRAMES:
                         
-            #         TOTAL_LEFT += 1  
-            #         COUNTER_LEFT = 0
+                    TOTAL_LEFT += 1  
+                    COUNTER_LEFT = 0
 
-            # if ear_right < EYE_AR_THRESH:  
+            if ear_right < EYE_AR_THRESH:  
                     
                     
-            #     COUNTER_RIGHT += 1  
+                COUNTER_RIGHT += 1  
 
-            # else:
+            else:
                     
-            #     if COUNTER_RIGHT >= EYE_AR_CONSEC_FRAMES: 
+                if COUNTER_RIGHT >= EYE_AR_CONSEC_FRAMES: 
                         
-            #         TOTAL_RIGHT += 1   
-            #         COUNTER_RIGHT = 0
+                    TOTAL_RIGHT += 1   
+                    COUNTER_RIGHT = 0
 
 
-            # x = TOTAL_LEFT + TOTAL_RIGHT
+            x = TOTAL_LEFT + TOTAL_RIGHT
 
     temp = cv2.dnn.blobFromImage(cv2.resize(resized_cropped, (300, 300)), 1.0,
         (300, 300), (104.0, 177.0, 123.0))
     net.setInput(temp)
     detections = net.forward()
-        # read the face frames
+    # read the face frames
     imgS = cv2.resize(resized_cropped, (0,0), None, 0.25,0.25)
     imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
-        # encode the face frames
+    # encode the face frames
     faceCurrentFrame = face_recognition.face_locations(imgS)
+    if not faceCurrentFrame:
+        response["text"]=""
     encodeCurrentFrame = face_recognition.face_encodings(imgS, faceCurrentFrame)
     for i in range(0, detections.shape[2]):
 
@@ -278,8 +279,7 @@ while True:
                     matchIndex = np.argmin(faceDistance)
 
                     if matches[matchIndex]:
-                        if faceDistance[matchIndex] < 0.45:
-                            # print(faceDistance[matchIndex])
+                        if faceDistance[matchIndex] < 0.48:
                             timedate = datetime.now()
                             currentDate = timedate.strftime('%Y-%m-%d')
                             currentTime = timedate.strftime('%H:%M:%S')
@@ -291,20 +291,19 @@ while True:
                                 (0,255,0), 2)
                             markAttendance(name, currentDate ,currentTime)
                         else:
-                            text = "{}".format("Unknown")
-                            cv2.putText(resized_cropped, text, (startX, startY - 10),
+                            cv2.putText(resized_cropped, 'Unknown', (startX, startY - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
                             cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
                                 (0,0,255), 2)
                     
 
             else:
-                warning = "Unknown"
-                cv2.putText(resized_cropped, warning, (startX, startY - 10),
+                cv2.putText(resized_cropped, 'Unknown', (startX, startY - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
                 cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
                     (0,0,255), 2)
-                response['text'] = ''
+                response['text'] = "Warning !!! Please do not display photo from any kind of device or remove your mask"
+                response['foreground'] = "red"
                 break
     
     cv2image = cv2.cvtColor(resized_cropped, cv2.COLOR_BGR2RGBA)
