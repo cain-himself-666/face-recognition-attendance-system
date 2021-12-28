@@ -113,6 +113,7 @@ encodeListKnown = findEncodings(images)
 print('Encoding Complete')
 # Load an color image
 root = tkinter.Tk()
+root.title('HCS Attendance')
 root.geometry("900x800")
 heading = tkinter.Label(root,text="High Court of Sikkim Attendance System")
 heading.config(font = ("Helvetica", 28))
@@ -145,32 +146,82 @@ response.config(font = ("Helvetica", 20))
 response.pack()
 
 #Mark Attendance
-def markAttendance(name, date, intime):
+def markInTime(name, date, intime):
+    id = ''
     try:
         conn = psycopg2.connect(
             host="localhost",
-            database="oss-dev",
+            database="test2",
             user="postgres",
             password="postgres",
             port="5432"
         )
         cur = conn.cursor()
-        query = """INSERT INTO attendance(username, date, intime) VALUES (%s,%s,%s)"""
-        params = (name, date, intime)
-        cur.execute(query, params)
-        response['text'] = "Welcome {}. Your attendance has been marked on {} at {}".format(name, date,intime)
-        response['foreground'] = "green"
+        fullname_query = """SELECT employee_name from api_userprofiles WHERE employee_username='%s'""" % name
+        cur.execute(fullname_query)
+        fullname = cur.fetchone()
+        query = """SELECT EXISTS(SELECT * FROM api_attendance WHERE employee_username_id=%s AND date_entry=%s)"""
+        params = (name, date)
+        cur.execute(query,params)
+        result = cur.fetchone()
+        if not result[0]:
+            get_id_query = """SELECT * FROM api_attendance ORDER BY id DESC"""
+            get_id_params = (name,date)
+            cur.execute(get_id_query,get_id_params)
+            init_id = cur.fetchone()
+            # print(init_id[0])
+            if not init_id:
+                id = '1'
+            else:
+                id = init_id[0]+1
+
+            intime_query = """INSERT INTO api_attendance(id, employee_username_id, date_entry, in_time) VALUES(%s,%s,%s,%s)"""
+            intime_params = (id,name,date,intime)
+            cur.execute(intime_query,intime_params)
+            response['text'] = "Welcome {}. Your In Time has been marked on {} at {} AM".format(fullname[0], date,intime)
+            response['foreground'] = "green"
+        else:
+            pass
         conn.commit()
-        # playsound('marked.wav')
-        # cur.close()
+        
     except (Exception, psycopg2.DatabaseError) as error:
-        pass
+        print(error)
+
+def markOutTime(name, date, outtime):
+    try:
+        conn = psycopg2.connect(
+            host="localhost",
+            database="test2",
+            user="postgres",
+            password="postgres",
+            port="5432"
+        )
+        cur = conn.cursor()
+        fullname_query = """SELECT employee_name from api_userprofiles WHERE employee_username='%s'""" % name
+        cur.execute(fullname_query)
+        fullname = cur.fetchone()
+        query = """SELECT EXISTS(SELECT * FROM api_attendance WHERE employee_username_id=%s AND date_entry=%s)"""
+        params = (name, date)
+        cur.execute(query,params)
+        result = cur.fetchone()
+        if result[0]:
+            outtime_query = """UPDATE api_attendance SET out_time=%s WHERE employee_username_id=%s AND date_entry=%s"""
+            outtime_params = (outtime,name,date)
+            cur.execute(outtime_query,outtime_params)
+            response['text'] = "Thank You {}. Your Out Time has been marked on {} at {} PM".format(fullname[0], date,outtime)
+            response['foreground'] = "green"
+        else:
+            pass
+        conn.commit()
+        
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
                 
 #starting the stream
-video_capture = cv2.VideoCapture(1)
+video_capture = cv2.VideoCapture(0)
 video_capture.set(3, 640)
 video_capture.set(4, 480)
-scale = 21
+scale = 40
 #looping over frames
 while True:
     #checkpoint 1
@@ -240,30 +291,23 @@ while True:
         response["text"]=""
     encodeCurrentFrame = face_recognition.face_encodings(imgS, faceCurrentFrame)
     for i in range(0, detections.shape[2]):
-
-        confidence = detections[0, 0, i, 2]
-                
-            #staisfying the union need of veryfying through ROI and blink detection.  
-        if confidence > args["confidence"] and x>10:
-                
-                
-                
-                #detect a bounding box
+        confidence = detections[0, 0, i, 2]        
+        #staisfying the union need of veryfying through ROI and blink detection.  
+        if confidence > args["confidence"] and x>10:    
+            #detect a bounding box
             #take dimensions
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             #get the dimensions
             (startX, startY, endX, endY) = box.astype("int")
-
-                
             startX = max(0, startX)
             startY = max(0, startY)
             endX = min(w, endX)
             endY = min(h, endY)
 
-        # extract the face ROI and then preproces it in the exact
-        # same manner as our training data
+            # extract the face ROI and then preproces it in the exact
+            # same manner as our training data
             face = resized_cropped[startY:endY, startX:endX]
-            face = cv2.resize(face, (32, 32))
+            face = cv2.resize(face,(32,32))
             face = face.astype("float") / 255.0
             face = img_to_array(face)
             face = np.expand_dims(face, axis=0)
@@ -282,14 +326,17 @@ while True:
                         if faceDistance[matchIndex] < 0.48:
                             timedate = datetime.now()
                             currentDate = timedate.strftime('%Y-%m-%d')
-                            currentTime = timedate.strftime('%H:%M:%S')
-                            name = names[matchIndex].upper()
-                            text = "{}".format(name)
-                            cv2.putText(resized_cropped, text, (startX, startY - 10),
+                            currentTime12Hr = timedate.strftime('%I:%M:%S')
+                            currentTime24Hr = timedate.strftime('%H:%M:%S')
+                            name = names[matchIndex].lower()
+                            cv2.putText(resized_cropped, '', (startX, startY - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                             cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
                                 (0,255,0), 2)
-                            markAttendance(name, currentDate ,currentTime)
+                            if currentTime24Hr > '07:00' and currentTime24Hr < '13:30':
+                                markInTime(name, currentDate ,currentTime12Hr)
+                            if currentTime24Hr > '15:30' and currentTime24Hr < '21:00':
+                                markOutTime(name, currentDate ,currentTime12Hr)
                         else:
                             cv2.putText(resized_cropped, 'Unknown', (startX, startY - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
@@ -304,14 +351,13 @@ while True:
                     (0,0,255), 2)
                 response['text'] = "Warning !!! Please do not display photo from any kind of device or remove your mask"
                 response['foreground'] = "red"
-                break
-    
+
     cv2image = cv2.cvtColor(resized_cropped, cv2.COLOR_BGR2RGBA)
     img = Image.fromarray(cv2image)
     imgtk = ImageTk.PhotoImage(image=img)
     lmain['image'] = imgtk
 
-    root.update() 
+    root.update()
     
 
 #vs.stop()
