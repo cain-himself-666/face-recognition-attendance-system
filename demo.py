@@ -346,6 +346,11 @@ while True:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
                             cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
                                 (0,0,255), 2)
+                    else:
+                        cv2.putText(resized_cropped, 'Unknown', (startX, startY - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                        cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
+                            (0,0,255), 2)
                     
 
             else:
