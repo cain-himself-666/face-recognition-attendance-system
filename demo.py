@@ -150,10 +150,10 @@ def markInTime(name, date, intime):
     id = ''
     try:
         conn = psycopg2.connect(
-            host="localhost",
-            database="test2",
+            host="10.182.144.233",
+            database="oss",
             user="postgres",
-            password="postgres",
+            password="Hcs@2021!",
             port="5432"
         )
         cur = conn.cursor()
@@ -181,6 +181,8 @@ def markInTime(name, date, intime):
             response['text'] = "Welcome {}. Your In Time has been marked on {} at {} AM".format(fullname[0], date,intime)
             response['foreground'] = "green"
         else:
+            response['text'] = "Your In Time has been already been marked"
+            response['foreground'] = "green"
             pass
         conn.commit()
         
@@ -190,10 +192,10 @@ def markInTime(name, date, intime):
 def markOutTime(name, date, outtime):
     try:
         conn = psycopg2.connect(
-            host="localhost",
-            database="test2",
+            host="10.182.144.233",
+            database="oss",
             user="postgres",
-            password="postgres",
+            password="Hcs@2021!",
             port="5432"
         )
         cur = conn.cursor()
@@ -211,6 +213,8 @@ def markOutTime(name, date, outtime):
             response['text'] = "Thank You {}. Your Out Time has been marked on {} at {} PM".format(fullname[0], date,outtime)
             response['foreground'] = "green"
         else:
+            response['text'] = "Your Out Time has been already been marked"
+            response['foreground'] = "green"
             pass
         conn.commit()
         
@@ -221,7 +225,7 @@ def markOutTime(name, date, outtime):
 video_capture = cv2.VideoCapture(0)
 video_capture.set(3, 640)
 video_capture.set(4, 480)
-scale = 40
+scale = 32
 #looping over frames
 while True:
     #checkpoint 1
@@ -333,7 +337,7 @@ while True:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                             cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
                                 (0,255,0), 2)
-                            if currentTime24Hr > '07:00' and currentTime24Hr < '13:30':
+                            if currentTime24Hr > '07:00' and currentTime24Hr < '11:30':
                                 markInTime(name, currentDate ,currentTime12Hr)
                             if currentTime24Hr > '15:30' and currentTime24Hr < '21:00':
                                 markOutTime(name, currentDate ,currentTime12Hr)
