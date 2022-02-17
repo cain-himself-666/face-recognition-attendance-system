@@ -98,7 +98,7 @@ for cl in myList:
     labels = os.path.splitext(cl)[0]
     if labels.startswith('.'):
         continue
-    names.append(labels.split("_")[0])
+    names.append(labels.split(" ")[0])
 
 #find encodings of the images
 def findEncodings(images):
@@ -144,16 +144,33 @@ lmain.grid(row=0, column=0)
 response = tkinter.Label(root)
 response.config(font = ("Helvetica", 20))
 response.pack()
+def getFullName(name):
+    try:
+        conn = psycopg2.connect(
+            host="localhost",
+            database="test",
+            user="postgres",
+            password="postgres",
+            port="5432"
+        )
+        cur = conn.cursor()
+        fullname_query = """SELECT employee_name from api_userprofiles WHERE employee_username='%s'""" % name
+        cur.execute(fullname_query)
+        fullname = cur.fetchone()
+        conn.commit()
+        return fullname[0]
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
 
 #Mark Attendance
 def markInTime(name, date, intime):
     id = ''
     try:
         conn = psycopg2.connect(
-            host="10.182.144.233",
-            database="oss",
+            host="localhost",
+            database="test",
             user="postgres",
-            password="Hcs@2021!",
+            password="postgres",
             port="5432"
         )
         cur = conn.cursor()
@@ -178,6 +195,7 @@ def markInTime(name, date, intime):
             intime_query = """INSERT INTO api_attendance(id, employee_username_id, date_entry, in_time) VALUES(%s,%s,%s,%s)"""
             intime_params = (id,name,date,intime)
             cur.execute(intime_query,intime_params)
+            display_name = "{}".format(fullname[0])
             response['text'] = "Welcome {}. Your In Time has been marked on {} at {} AM".format(fullname[0], date,intime)
             response['foreground'] = "green"
         else:
@@ -192,10 +210,10 @@ def markInTime(name, date, intime):
 def markOutTime(name, date, outtime):
     try:
         conn = psycopg2.connect(
-            host="10.182.144.233",
-            database="oss",
+            host="localhost",
+            database="test",
             user="postgres",
-            password="Hcs@2021!",
+            password="postgres",
             port="5432"
         )
         cur = conn.cursor()
@@ -210,6 +228,7 @@ def markOutTime(name, date, outtime):
             outtime_query = """UPDATE api_attendance SET out_time=%s WHERE employee_username_id=%s AND date_entry=%s"""
             outtime_params = (outtime,name,date)
             cur.execute(outtime_query,outtime_params)
+            display_name = "{}".format(fullname[0])
             response['text'] = "Thank You {}. Your Out Time has been marked on {} at {} PM".format(fullname[0], date,outtime)
             response['foreground'] = "green"
         else:
@@ -330,17 +349,18 @@ while True:
                         if faceDistance[matchIndex] < 0.48:
                             timedate = datetime.now()
                             currentDate = timedate.strftime('%Y-%m-%d')
-                            currentTime12Hr = timedate.strftime('%I:%M:%S')
                             currentTime24Hr = timedate.strftime('%H:%M:%S')
                             name = names[matchIndex].lower()
-                            cv2.putText(resized_cropped, '', (startX, startY - 10),
+                            display_name = getFullName(name)
+                            cv2.putText(resized_cropped, display_name, (startX, startY - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                             cv2.rectangle(resized_cropped, (startX, startY), (endX, endY),
                                 (0,255,0), 2)
-                            if currentTime24Hr > '07:00' and currentTime24Hr < '11:30':
-                                markInTime(name, currentDate ,currentTime12Hr)
-                            if currentTime24Hr > '15:30' and currentTime24Hr < '21:00':
-                                markOutTime(name, currentDate ,currentTime12Hr)
+                            if currentTime24Hr > '07:00' and currentTime24Hr < '15:59':
+                                markInTime(name, currentDate ,currentTime24Hr)
+                            if currentTime24Hr > '16:00' and currentTime24Hr < '21:00':
+                                markOutTime(name, currentDate ,currentTime24Hr)
+                            
                         else:
                             cv2.putText(resized_cropped, 'Unknown', (startX, startY - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
